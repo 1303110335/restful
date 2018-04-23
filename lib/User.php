@@ -97,6 +97,8 @@ class User
         $password = $this->_md5($password);
         $stmt->bindParam(':password', $password);
         $stmt->bindParam(':created_at', $createdAt);
+
+        var_dump($stmt->queryString);exit;
         if (!$stmt->execute()) {
             throw new \Exception('用户注册失败', ErrorCode::USER_REGSITER_FAILED);
         }
@@ -105,6 +107,13 @@ class User
             'username' => $username,
             'createdAt' => $createdAt
         ];
+    }
+
+
+    private function _debugQuery($queryString)
+    {
+        //INSERT INTO `user` (`username`,`password`,`created_at`) VALUES (:username, :password, :created_at);
+
     }
 
     private function _md5($string, $key = 'imooc')

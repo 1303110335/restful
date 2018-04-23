@@ -89,12 +89,18 @@ class Restful
 
     /**
      * 请求用户资源
+     * @throws \Exception
      */
     private function _handleUsers()
     {
         if ($this->_requestMethod != 'POST') {
             throw  new \Exception('请求方法不被允许', 100);
         }
+
+        $username = $_POST['username'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $user = $this->_user->register($username, $password);
+        $this->_json($user, 200);
     }
 
     /**
@@ -111,6 +117,7 @@ class Restful
      */
     private function _setupRequestMethod()
     {
+//        echo json_encode($_SERVER);exit;
         $this->_requestMethod = $_SERVER['REQUEST_METHOD'];
         if (!in_array($this->_requestMethod, $this->_allowResquestMethods)) {
             throw new \Exception($this->_statusCode[405], 405);
@@ -123,7 +130,7 @@ class Restful
      */
     private function _setupResource()
     {
-        $path = $_SERVER['PATH_INFO'];
+        $path = $_SERVER['REQUEST_URI'];
         $params = explode('/', $path);
         $this->_resourceName = $params[1];
         if (!in_array($this->_resourceName, $this->_allowResources)) {
@@ -142,7 +149,14 @@ class Restful
     private function _json($array, $code)
     {
         if ($code > 0 && $code != 200 && $code != 204) {
-            header("HTTP/1.1 " . $code . " " . $this->_statusCode[$code]);
+            if (!isset($this->_statusCode[$code])) {
+                $message = 'Unknow';
+                $code = 200;
+            } else {
+                $message = $this->_statusCode[$code];
+            }
+
+            header("HTTP/1.1 " . $code . " " . $message );
         }
         header('Content-type:application/json;charset=utf-8');
         echo json_encode($array, JSON_UNESCAPED_UNICODE);
