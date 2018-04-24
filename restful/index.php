@@ -9,6 +9,7 @@
 namespace spl\restful;
 
 use spl\lib\Article;
+use spl\lib\ErrorCode;
 use spl\lib\User;
 
 /**
@@ -49,7 +50,7 @@ class Restful
      * 允许请求的method方法
      * @var array
      */
-    private $_allowResquestMethods = ['GET', 'POST','PUT', 'DELETE', 'OPTIONS'];
+    private $_allowResquestMethods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
 
     /**
      * 常用状态
@@ -78,12 +79,12 @@ class Restful
             $this->_setupRequestMethod();
             $this->_setupResource();
             if ($this->_resourceName == 'users') {
-                $this->_handleUsers();
+                $this->_json($this->_handleUsers());
             } else {
-                $this->_handleArticles();
+                $this->_json($this->_handleArticles());
             }
         } catch (\Exception $e) {
-            $this->_json( [$e->getMessage()], $e->getCode());
+            $this->_json([$e->getMessage()], $e->getCode());
         }
     }
 
@@ -97,18 +98,128 @@ class Restful
             throw  new \Exception('请求方法不被允许', 100);
         }
 
-        $username = $_POST['username'] ?? '';
-        $password = $_POST['password'] ?? '';
-        $user = $this->_user->register($username, $password);
-        $this->_json($user, 200);
+        $body = $this->_getBodyParams();
+        if (empty($body['username'])) {
+            throw new \Exception('用户名不能为空', 400);
+        }
+        if (empty($body['password'])) {
+            throw new \Exception('密码不能为空', 400);
+        }
+        return $this->_user->register($body['username'], $body['password']);
+    }
+
+    /**
+     * 获取请求体参数
+     * @return mixed
+     * @throws \Exception
+     */
+    private function _getBodyParams()
+    {
+        //获得输入的json字符串
+        $raw = file_get_contents('php://input');
+        if (empty($raw)) {
+            throw new \Exception('请求参数错误', 400);
+        }
+        return json_decode($raw, true);
     }
 
     /**
      * 请求文章资源
+     * @return array|void
+     * @throws \Exception
      */
     private function _handleArticles()
     {
+        switch ($this->_requestMethod) {
+            case 'POST':
+                return $this->_handleArticleCreate();
+            case 'PUT':
+                return $this->_handleArticleEdit();
+            case 'DELETE':
+                return $this->_handleArticleDelete();
+            case 'GET':
+                if (empty($this->_id)) {
+                    return $this->_handleArticleList();
+                } else {
+                    return $this->_handleArticleView();
+                }
+        }
+    }
 
+    /**
+     * 创建文章
+     * @return array
+     * @throws \Exception
+     */
+    private function _handleArticleCreate()
+    {
+        $body = $this->_getBodyParams();
+        if (empty($body['title'])) {
+            throw new \Exception('文章标题不能为空', 400);
+        }
+        if (empty($body['content'])) {
+            throw new \Exception('文章内容不能为空', 400);
+        }
+//        var_dump($_SERVER);exit;
+        $user = $this->_userLogin($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']);
+
+        try {
+            $article = $this->_article->create($body['title'], $body['content'], $user['userId']);
+            return $article;
+        } catch (\Exception $e) {
+            if (!in_array($e->getCode(), [
+                ErrorCode::ARTICLE_TITLE_CANNOT_EMPTY,
+                ErrorCode::ARTICLE_CONTENT_CANNOT_EMPTY
+            ])) {
+                throw new \Exception($e->getMessage(), 400);
+            }
+            throw new \Exception($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * 用户登录
+     * @param $username
+     * @param $password
+     * @return array
+     * @throws \Exception
+     */
+    private function _userLogin($username, $password)
+    {
+        try {
+            return $this->_user->login($username, $password);
+        } catch (\Exception $e) {
+            if (in_array($e->getCode(),
+                [
+                    ErrorCode::USERNAME_CANNOT_EMPTY,
+                    ErrorCode::PASSWORD_CANNOT_EMPTY,
+                    ErrorCode::USERNAME_OR_PASSWORD_INVALID
+                ])
+            ) {
+                throw new \Exception($e->getMessage(), 400);
+            };
+            throw new \Exception($e->getMessage(), 500);
+        }
+    }
+
+    private function _handleArticleEdit()
+    {
+        $this->_article->edit();
+    }
+
+    private function _handleArticleDelete()
+    {
+        $this->_article->delete();
+    }
+
+    private function _handleArticleList()
+    {
+        $this->_article->getList();
+    }
+
+    private function _handleArticleView()
+    {
+        $this->_article->view();
     }
 
     /**
@@ -146,7 +257,7 @@ class Restful
      * 输出json
      * @param $array
      */
-    private function _json($array, $code)
+    private function _json($array, $code = 200)
     {
         if ($code > 0 && $code != 200 && $code != 204) {
             if (!isset($this->_statusCode[$code])) {
@@ -156,7 +267,7 @@ class Restful
                 $message = $this->_statusCode[$code];
             }
 
-            header("HTTP/1.1 " . $code . " " . $message );
+            header("HTTP/1.1 " . $code . " " . $message);
         }
         header('Content-type:application/json;charset=utf-8');
         echo json_encode($array, JSON_UNESCAPED_UNICODE);

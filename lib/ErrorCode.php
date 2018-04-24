@@ -24,4 +24,5 @@ class ErrorCode
     const PERMISSION_DENIED = '11';
     const ARTICLE_EDIT_FAILED = '12';
     const ARTICLE_DELETE_FAILED = '13';
+    const SERVER_INTERNAL_ERROR = '14';
 }

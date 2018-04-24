@@ -6,7 +6,7 @@
  * Time: 21:38
  */
 
-$pdo = new \PDO('mysql:host=127.0.0.1;dbname=mydb;', 'root', '123456');
+$pdo = new \PDO('mysql:host=127.0.0.1;dbname=mydb;', 'root', 'root');
 $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 /*$stmt = $pdo->prepare();
 $stmt->execute();*/

@@ -60,7 +60,9 @@ class User
         $stmt->bindParam(':username', $username);
         $password = $this->_md5($password);
         $stmt->bindParam(':password', $password);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            throw new \Exception('服务器内部错误', ErrorCode::SERVER_INTERNAL_ERROR);
+        }
         $user = $stmt->fetch(\PDO::FETCH_ASSOC);
         if (empty($user)) {
             throw new \Exception('用户名或密码错误', ErrorCode::USERNAME_OR_PASSWORD_INVALID);
@@ -98,7 +100,6 @@ class User
         $stmt->bindParam(':password', $password);
         $stmt->bindParam(':created_at', $createdAt);
 
-        var_dump($stmt->queryString);exit;
         if (!$stmt->execute()) {
             throw new \Exception('用户注册失败', ErrorCode::USER_REGSITER_FAILED);
         }
